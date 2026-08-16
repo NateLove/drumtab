@@ -1,0 +1,32 @@
+# --- drumtab runtime artifacts ---
+runs/            # cached per-run stages (audio, stems, midi)
+out/             # generated tabs / musicxml / pdf
+*.wav
+*.mp3
+*.mid
+*.midi
+*.musicxml
+*.pdf
+.cache/          # demucs / torch / whisper model caches
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- virtualenvs / env ---
+.venv/
+venv/
+env/
+.env
+
+# --- editor / OS ---
+.vscode/
+.idea/
+.DS_Store
