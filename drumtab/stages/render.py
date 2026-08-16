@@ -50,3 +50,34 @@ def render_pdf(musicxml_path: str, out_pdf: str) -> str:
     exe = _find_musescore()
     subprocess.run([exe, "-o", out_pdf, musicxml_path], check=True)
     return out_pdf
+
+
+def render_tab_pdf(tab_text: str, out_pdf: str, font_size: int = 9) -> str:
+    """Typeset the ASCII tab (including any lyric overlay) as a monospaced PDF.
+
+    Uses a fixed-width font so the column alignment between the lyric line and
+    the bars is preserved exactly as it appears in tab.txt. This is the
+    "PDF with words" path — unlike the engraved score, it keeps the lyrics."""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import inch
+        from reportlab.pdfgen import canvas
+    except ImportError as e:
+        raise RuntimeError("reportlab not installed: pip install '.[notation]'") from e
+
+    width, height = letter
+    left, bottom, top = 0.5 * inch, 0.6 * inch, height - 0.6 * inch
+    leading = font_size + 2
+
+    c = canvas.Canvas(out_pdf, pagesize=letter)
+    c.setFont("Courier", font_size)
+    y = top
+    for line in tab_text.split("\n"):
+        if y < bottom:
+            c.showPage()
+            c.setFont("Courier", font_size)
+            y = top
+        c.drawString(left, y, line)
+        y -= leading
+    c.save()
+    return out_pdf
