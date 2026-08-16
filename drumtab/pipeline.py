@@ -1,19 +1,20 @@
-"""Orchestrates fetch -> separate -> transcribe -> render.
+"""Orchestrates fetch -> separate -> (detect tempo) -> transcribe -> render.
 
 Stages write into a per-run workdir and are reused when their artifact
-already exists, so re-running to tweak tempo/grid doesn't re-download or
-re-separate (the slow parts). Lyrics add a vocal-stem + Whisper path; PDF
-adds a MusicXML -> MuseScore conversion.
+already exists, so re-running to tweak grid/tempo doesn't re-download or
+re-separate (the slow parts). When the user doesn't pass a tempo, we estimate
+it from the drum stem rather than falling back to a fixed 120 BPM.
 """
 
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+import sys
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .backends import adtof
-from .stages import fetch, render, separate
+from .stages import fetch, render, separate, tempo
 from .tab import TabConfig, Word
 
 
@@ -23,6 +24,7 @@ class PipelineResult:
     drums_stem: str
     midi: str
     tab: str
+    bpm: float | None = None
     musicxml: str | None = None
     pdf: str | None = None
     lyrics: list[Word] | None = None
@@ -48,6 +50,19 @@ class Pipeline:
         seps = separate.separate(audio, work, stems, self.demucs_model, self.device)
         drums = seps["drums"]
 
+        # Fill in tempo from the drum stem unless the user pinned it.
+        cfg = self.tab_cfg
+        if cfg.bpm is None:
+            detected = tempo.estimate_bpm(drums)
+            if detected:
+                cfg = replace(cfg, bpm=detected)
+                print(f"[tempo] detected {detected:g} BPM "
+                      f"(pass --bpm to override, or try {detected/2:g}/{detected*2:g} "
+                      f"if the groove looks half/double time)", file=sys.stderr)
+            else:
+                print("[tempo] auto-detect unavailable; using 120 BPM fallback "
+                      "(pass --bpm to set it)", file=sys.stderr)
+
         midi = adtof.transcribe_to_midi(drums, os.path.join(work, "midi"))
 
         words: list[Word] | None = None
@@ -55,7 +70,7 @@ class Pipeline:
             from .lyrics import transcribe_lyrics
             words = transcribe_lyrics(seps["vocals"])
 
-        tab_text = render.render_ascii(midi, self.tab_cfg, words=words)
+        tab_text = render.render_ascii(midi, cfg, words=words)
         tab_path = os.path.join(out_dir, "tab.txt")
         Path(tab_path).write_text(tab_text)
 
@@ -66,4 +81,5 @@ class Pipeline:
         if pdf:
             pdf_path = render.render_pdf(xml_path, os.path.join(out_dir, "score.pdf"))
 
-        return PipelineResult(audio, drums, midi, tab_path, xml_path, pdf_path, words)
+        return PipelineResult(audio, drums, midi, tab_path, cfg.bpm,
+                              xml_path, pdf_path, words)
