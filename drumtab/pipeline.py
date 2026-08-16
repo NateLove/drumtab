@@ -27,6 +27,7 @@ class PipelineResult:
     bpm: float | None = None
     musicxml: str | None = None
     pdf: str | None = None
+    tab_pdf: str | None = None
     lyrics: list[Word] | None = None
 
 
@@ -39,7 +40,7 @@ class Pipeline:
     reuse: bool = True
 
     def run(self, url_or_path: str, out_dir: str, musicxml: bool = False,
-            pdf: bool = False, lyrics: bool = False) -> PipelineResult:
+            pdf: bool = False, lyrics: bool = False, tab_pdf: bool = False) -> PipelineResult:
         os.makedirs(out_dir, exist_ok=True)
         work = os.path.join(self.workdir, Path(out_dir).name)
         os.makedirs(work, exist_ok=True)
@@ -74,6 +75,10 @@ class Pipeline:
         tab_path = os.path.join(out_dir, "tab.txt")
         Path(tab_path).write_text(tab_text)
 
+        tab_pdf_path = None
+        if tab_pdf:
+            tab_pdf_path = render.render_tab_pdf(tab_text, os.path.join(out_dir, "tab.pdf"))
+
         xml_path = None
         pdf_path = None
         if musicxml or pdf:
@@ -82,4 +87,4 @@ class Pipeline:
             pdf_path = render.render_pdf(xml_path, os.path.join(out_dir, "score.pdf"))
 
         return PipelineResult(audio, drums, midi, tab_path, cfg.bpm,
-                              xml_path, pdf_path, words)
+                              xml_path, pdf_path, tab_pdf_path, words)
