@@ -17,7 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 # ADT backend — pick one. pytorch flavour is easiest, esp. on Apple Silicon.
 adt = ["adtof-pytorch @ git+https://github.com/xavriley/ADTOF-pytorch"]
-notation = ["music21>=9.1"]        # MusicXML export (PDF also needs MuseScore CLI)
+notation = ["music21>=9.1", "reportlab>=4.0"]        # MusicXML export (PDF also needs MuseScore CLI)
 lyrics = ["openai-whisper>=20231117"]  # timed-word overlay from the vocal stem
 agent = ["mcp[cli]>=1.2"]          # MCP server for Claude Desktop/Code/Cowork
 dev = ["pytest>=8"]
