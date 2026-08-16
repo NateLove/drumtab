@@ -20,7 +20,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="drumtab", description="Drum tabs from YouTube.")
     p.add_argument("source", help="YouTube URL, audio file, or drum .mid")
     p.add_argument("-o", "--out", default="out", help="output directory")
-    p.add_argument("--bpm", type=float, default=None, help="override tempo")
+    p.add_argument("--bpm", type=float, default=None,
+                   help="tempo; auto-detected from the drum stem if omitted")
     p.add_argument("--grid", type=int, default=16, help="grid (16 = 16th notes)")
     p.add_argument("--bars", type=int, default=None, help="limit to N bars")
     p.add_argument("--bars-per-line", type=int, default=None, help="wrap width (systems)")
@@ -28,7 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--device", default=None, help="cpu | cuda | mps")
     p.add_argument("--lyrics", action="store_true", help="overlay timed lyrics (needs audio)")
     p.add_argument("--musicxml", action="store_true", help="also emit MusicXML")
-    p.add_argument("--pdf", action="store_true", help="also emit PDF (needs MuseScore)")
+    p.add_argument("--pdf", action="store_true", help="also emit engraved PDF (needs MuseScore)")
+    p.add_argument("--tab-pdf", action="store_true",
+                   help="also emit the ASCII tab as a printable PDF (keeps lyrics)")
     p.add_argument("--no-reuse", action="store_true", help="ignore cached stages")
     return p
 
@@ -52,6 +55,9 @@ def main(argv: list[str] | None = None) -> int:
         tab = render.render_ascii(args.source, cfg)
         (out / "tab.txt").write_text(tab)
         print(tab)
+        if args.tab_pdf:
+            p = render.render_tab_pdf(tab, str(out / "tab.pdf"))
+            print(f"-> {p}", file=sys.stderr)
         if args.musicxml or args.pdf:
             xml = render.render_musicxml(args.source, str(out / "score.musicxml"))
             if args.pdf:
@@ -61,10 +67,10 @@ def main(argv: list[str] | None = None) -> int:
 
     pipe = Pipeline(device=args.device, tab_cfg=cfg, reuse=not args.no_reuse)
     result = pipe.run(args.source, args.out, musicxml=args.musicxml,
-                      pdf=args.pdf, lyrics=args.lyrics)
+                      pdf=args.pdf, lyrics=args.lyrics, tab_pdf=args.tab_pdf)
     print(Path(result.tab).read_text())
     print(f"\n-> {result.tab}", file=sys.stderr)
-    for extra in (result.musicxml, result.pdf):
+    for extra in (result.tab_pdf, result.musicxml, result.pdf):
         if extra:
             print(f"-> {extra}", file=sys.stderr)
     return 0
